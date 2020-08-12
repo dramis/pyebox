@@ -10,27 +10,22 @@ def _format_output(account, data):
     """Format data to get a readable output"""
     data['account'] = account
     output = ("""Ebox data for account: {d[account]}
-
 Balance
 =======
 Balance:      {d[balance]:.2f} $
-
 Usage
 =====
 Usage:      {d[usage]:.2f} %
-
 Before offpeak
 ==============
 Download: {d[before_offpeak_download]:.2f} Gb
 Upload:   {d[before_offpeak_upload]:.2f} Gb
 Total:    {d[before_offpeak_total]:.2f} Gb
-
 Offpeak
 =======
 Download: {d[offpeak_download]:.2f} Gb
 Upload:   {d[offpeak_upload]:.2f} Gb
 Total:    {d[offpeak_total]:.2f} Gb
-
 Total
 =====
 Download: {d[download]:.2f} Gb
@@ -70,7 +65,7 @@ def main():
         print(json.dumps(client.get_data()))
     else:
         _format_output(args.username, client.get_data())
-    client.close_session()
+    #client.close_session()
 
 
 if __name__ == '__main__':

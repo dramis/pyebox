@@ -2,10 +2,6 @@
 PyEbox
 ######
 
-TODO
-####
-
-* Add non offpeak account support
 
 Installation
 ############
@@ -41,6 +37,8 @@ Print help
       -j, --json            Json output
       -t TIMEOUT, --timeout TIMEOUT
                             Request timeout
+
+      Json output include internet usage for the current month and last month by day.
 
 Dev env
 #######

@@ -5,6 +5,8 @@ import asyncio
 import json
 import logging
 import re
+import datetime
+
 import async_timeout
 
 
@@ -167,7 +169,53 @@ class EboxClient(object):
                 usage_data[key] = abs(float(str_value)) / 1024
             except OSError:
                 raise PyEboxError("Can not get %s", key)
+
         return usage_data
+
+    async def _get_usage_data_day(self):
+        today = datetime.date.today()
+        first = today.replace(day=1)
+        lastMonth = first - datetime.timedelta(days=1)
+        currentYear = first.strftime("%Y")
+        currentMonth = first.strftime("%m")
+
+        lastMonthYear = lastMonth.strftime("%Y")
+        lastMonhtMonth= lastMonth.strftime("%m")
+
+        """Get data usage."""
+        usage_day_detail = {}
+        data_day = []
+        data_day.extend(await self.fetch_data_month(currentYear, currentMonth))
+        data_day.extend(await self.fetch_data_month(lastMonthYear, lastMonhtMonth))
+        usage_day_detail["detail_day"] = data_day
+        return usage_day_detail
+
+    async def fetch_data_month(self, year, month):
+        headers = {'Host': 'client.ebox.ca',
+        'User-Agent': 'Mozilla / 5.0(X11; Linux x86_64; rv: 68.0) Gecko / 20100101 Firefox / 68.0',
+        'Accept': 'application / json, text / javascript, * / *; q = 0.01',
+        'Accept-Language': 'en - US, en;q = 0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://client.ebox.ca/myusage',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Connection': 'keep-alive'
+         }
+        await self._session.get("https://client.ebox.ca/ajax/usages?action=getMonth&m={}&y={}".format(month, year), headers=headers)
+        raw_res = await self._session.get("https://client.ebox.ca/myusage?dp={}_{}".format(year, month))
+        content = await raw_res.text()
+        soup = BeautifulSoup(content, 'html.parser')
+        td_list = soup.find_all("td", {"class": "text_small"})
+
+        usage_day_data = []
+        for index in range(0, len(td_list), 4):
+            usage_data_day = {}
+            usage_data_day["date"] = td_list[index].text.split()[0]
+            usage_data_day["download"] = td_list[index + 1].select("span")[0].attrs.get("data-m").split()[0]
+            usage_data_day["upload"] = td_list[index + 2].select("span")[0].attrs.get("data-m").split()[0]
+            usage_data_day["total"] = td_list[index + 3].select("span")[0].attrs.get("data-m").split()[0]
+            if usage_data_day["date"].startswith("{}-{}".format(year, month)):
+                usage_day_data.append(usage_data_day)
+        return usage_day_data
 
     async def fetch_data(self):
         """Get the latest data from EBox."""
@@ -181,17 +229,21 @@ class EboxClient(object):
         home_data = await self._get_home_data()
         # Get usage data
         usage_data = await self._get_usage_data()
+        usage_data_day = await self._get_usage_data_day()
         # Merge data
         self._data.update(home_data)
         self._data.update(usage_data)
+        self._data.update(usage_data_day)
+        await self.close_session()
+
 
     def get_data(self):
         """Return collected data"""
         return self._data
 
-    def close_session(self):
+    async def close_session(self):
         """Close current session."""
         if not self._session.closed:
             if self._session._connector_owner:
-                self._session._connector.close()
+                await self._session._connector.close()
             self._session._connector = None
